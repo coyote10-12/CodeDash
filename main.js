@@ -1,5 +1,5 @@
 function main() {
-    ask("What's 5 x 5?","25");
+    ask("What's 5 x 5?",5*5);
 }
 
 function ask(question, correct) {
