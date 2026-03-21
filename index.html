@@ -20,7 +20,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 16px;
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
     }
 
@@ -57,11 +57,11 @@
   </style>
 </head>
 <body>
-  <h1>Multiplication Tables (1–10)</h1>
+  <h1>Multiplication Tables (1–12)</h1>
   <div id="tablesGrid" class="grid"></div>
 
   <script>
-    function createMultiplicationTables(start = 1, end = 10, maxMultiplier = 10) {
+    function createMultiplicationTables(start = 1, end = 12, maxMultiplier = 12) {
       const grid = document.getElementById("tablesGrid");
 
       for (let n = start; n <= end; n++) {
@@ -94,8 +94,8 @@
       }
     }
 
-    // Generate tables 1–10 on load
-    createMultiplicationTables(1, 10, 10);
+    // Generate tables 1–12 on load
+    createMultiplicationTables(1, 12, 12);
   </script>
 </body>
 </html>
