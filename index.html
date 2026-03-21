@@ -1,284 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Fake Geometry Dash</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+<script>
+  const gameContainer = document.getElementById("gameContainer");
+  const player = document.getElementById("player");
+  const gameOverOverlay = document.getElementById("gameOver");
+  const gameOverText = document.getElementById("gameOverText");
+  const restartBtn = document.getElementById("restartBtn");
+  const scoreSpan = document.getElementById("scoreValue");
+
+  const containerWidth = 800;
+  const groundHeight = 40;
+
+  // -------------------------
+  // LEVEL DEFINITIONS
+  // -------------------------
+  const levels = [
+    {
+      name: "Level 1 — Warmup",
+      speed: 300,
+      spawnMin: 1.2,
+      spawnMax: 1.8,
+      length: 10,
+      color: "#00e5ff"
+    },
+    {
+      name: "Level 2 — Faster",
+      speed: 380,
+      spawnMin: 1.0,
+      spawnMax: 1.5,
+      length: 15,
+      color: "#ffcc00"
+    },
+    {
+      name: "Level 3 — Chaos",
+      speed: 450,
+      spawnMin: 0.7,
+      spawnMax: 1.2,
+      length: 20,
+      color: "#ff006e"
     }
+  ];
 
-    body {
-      background: #111;
-      color: #fff;
-      font-family: system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-      overflow: hidden;
+  let currentLevel = 0;
+  let obstaclesSpawned = 0;
+
+  // -------------------------
+  // GAME STATE
+  // -------------------------
+  let obstacles = [];
+  let lastTime = 0;
+  let speed = 300;
+  let gravity = -1500;
+  let jumpVelocity = 650;
+  let playerY = 40;
+  let playerVY = 0;
+  let isOnGround = true;
+  let gameRunning = true;
+  let spawnTimer = 0;
+  let score = 0;
+
+  function loadLevel(index) {
+    const lvl = levels[index];
+    speed = lvl.speed;
+    spawnTimer = 0;
+    obstaclesSpawned = 0;
+
+    player.style.background = lvl.color;
+    player.style.boxShadow = `0 0 10px ${lvl.color}`;
+
+    console.log("Loaded:", lvl.name);
+  }
+
+  function resetGame() {
+    obstacles.forEach(o => o.el.remove());
+    obstacles = [];
+
+    playerY = 40;
+    playerVY = 0;
+    isOnGround = true;
+
+    currentLevel = 0;
+    score = 0;
+    scoreSpan.textContent = "0";
+
+    gameRunning = true;
+    gameOverOverlay.style.visibility = "hidden";
+
+    loadLevel(0);
+
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+  }
+
+  function spawnObstacle() {
+    const lvl = levels[currentLevel];
+
+    const el = document.createElement("div");
+    el.className = "obstacle";
+    el.style.background = lvl.color;
+    el.style.boxShadow = `0 0 10px ${lvl.color}`;
+    gameContainer.appendChild(el);
+
+    const obstacle = {
+      el,
+      x: containerWidth,
+      width: 20,
+      passed: false
+    };
+
+    el.style.left = obstacle.x + "px";
+    obstacles.push(obstacle);
+
+    obstaclesSpawned++;
+  }
+
+  function jump() {
+    if (!gameRunning) return;
+    if (isOnGround) {
+      playerVY = jumpVelocity;
+      isOnGround = false;
     }
+  }
 
-    h1 {
-      margin: 10px 0;
-      font-size: 24px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
+  function updatePlayer(dt) {
+    playerVY += gravity * dt;
+    playerY += playerVY * dt;
 
-    #info {
-      font-size: 14px;
-      margin-bottom: 10px;
-      opacity: 0.8;
-    }
-
-    #gameContainer {
-      position: relative;
-      width: 800px;
-      height: 300px;
-      border: 2px solid #444;
-      background: linear-gradient(#222, #000);
-      overflow: hidden;
-    }
-
-    #ground {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      width: 100%;
-      height: 40px;
-      background: #333;
-      box-shadow: 0 -2px 0 #555 inset;
-    }
-
-    #player {
-      position: absolute;
-      width: 30px;
-      height: 30px;
-      left: 80px;
-      bottom: 40px;
-      background: #00e5ff;
-      box-shadow: 0 0 10px #00e5ff;
-    }
-
-    .obstacle {
-      position: absolute;
-      width: 20px;
-      height: 40px;
-      bottom: 40px;
-      background: #ff006e;
-      box-shadow: 0 0 10px #ff006e;
-    }
-
-    #score {
-      margin-top: 8px;
-      font-size: 16px;
-    }
-
-    #gameOver {
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      color: #fff;
-      font-size: 24px;
-      text-align: center;
-      visibility: hidden;
-    }
-
-    #gameOver button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      border: none;
-      background: #00e676;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-
-    #gameOver button:hover {
-      background: #00c853;
-    }
-  </style>
-</head>
-<body>
-  <h1>Fake Geometry Dash</h1>
-  <div id="info">Press SPACE or CLICK to jump. Avoid the pink spikes.</div>
-
-  <div id="gameContainer">
-    <div id="player"></div>
-    <div id="ground"></div>
-    <div id="gameOver">
-      <div id="gameOverText">Game Over</div>
-      <button id="restartBtn">Restart</button>
-    </div>
-  </div>
-
-  <div id="score">Score: <span id="scoreValue">0</span></div>
-
-  <script>
-    const gameContainer = document.getElementById("gameContainer");
-    const player = document.getElementById("player");
-    const gameOverOverlay = document.getElementById("gameOver");
-    const gameOverText = document.getElementById("gameOverText");
-    const restartBtn = document.getElementById("restartBtn");
-    const scoreSpan = document.getElementById("scoreValue");
-
-    const containerWidth = 800;
-    const containerHeight = 300;
-    const groundHeight = 40;
-
-    let obstacles = [];
-    let lastTime = 0;
-    let speed = 300; // pixels per second
-    let gravity = -1500; // px/s^2 (negative because we use bottom)
-    let jumpVelocity = 650; // px/s
-    let playerY = 40; // bottom position
-    let playerVY = 0;
-    let isOnGround = true;
-    let gameRunning = true;
-    let spawnTimer = 0;
-    let score = 0;
-
-    function resetGame() {
-      obstacles.forEach(o => o.el.remove());
-      obstacles = [];
-      playerY = 40;
+    if (playerY <= groundHeight) {
+      playerY = groundHeight;
       playerVY = 0;
       isOnGround = true;
-      speed = 300;
-      spawnTimer = 0;
-      score = 0;
-      scoreSpan.textContent = "0";
-      gameRunning = true;
-      gameOverOverlay.style.visibility = "hidden";
-      lastTime = performance.now();
-      requestAnimationFrame(gameLoop);
     }
 
-    function spawnObstacle() {
-      const el = document.createElement("div");
-      el.className = "obstacle";
-      gameContainer.appendChild(el);
+    player.style.bottom = playerY + "px";
+  }
 
-      const obstacle = {
-        el,
-        x: containerWidth,
-        width: 20,
-        passed: false
-      };
+  function updateObstacles(dt) {
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.x -= speed * dt;
+      o.el.style.left = o.x + "px";
 
-      el.style.left = obstacle.x + "px";
-      obstacles.push(obstacle);
-    }
-
-    function jump() {
-      if (!gameRunning) return;
-      if (isOnGround) {
-        playerVY = jumpVelocity;
-        isOnGround = false;
-      }
-    }
-
-    function updatePlayer(dt) {
-      playerVY += gravity * dt;
-      playerY += playerVY * dt;
-
-      if (playerY <= groundHeight) {
-        playerY = groundHeight;
-        playerVY = 0;
-        isOnGround = true;
+      if (!o.passed && o.x + o.width < 80) {
+        o.passed = true;
+        score++;
+        scoreSpan.textContent = score;
       }
 
-      player.style.bottom = playerY + "px";
-    }
-
-    function updateObstacles(dt) {
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        const o = obstacles[i];
-        o.x -= speed * dt;
-        o.el.style.left = o.x + "px";
-
-        if (!o.passed && o.x + o.width < 80) {
-          o.passed = true;
-          score++;
-          scoreSpan.textContent = score;
-          speed += 10; // slowly increase difficulty
-        }
-
-        if (o.x + o.width < 0) {
-          o.el.remove();
-          obstacles.splice(i, 1);
-        }
+      if (o.x + o.width < 0) {
+        o.el.remove();
+        obstacles.splice(i, 1);
       }
     }
+  }
 
-    function checkCollision() {
-      const playerRect = player.getBoundingClientRect();
-      for (const o of obstacles) {
-        const rect = o.el.getBoundingClientRect();
-        const overlap =
-          playerRect.left < rect.right &&
-          playerRect.right > rect.left &&
-          playerRect.top < rect.bottom &&
-          playerRect.bottom > rect.top;
+  function checkCollision() {
+    const playerRect = player.getBoundingClientRect();
+    for (const o of obstacles) {
+      const rect = o.el.getBoundingClientRect();
+      const overlap =
+        playerRect.left < rect.right &&
+        playerRect.right > rect.left &&
+        playerRect.top < rect.bottom &&
+        playerRect.bottom > rect.top;
 
-        if (overlap) {
-          return true;
-        }
-      }
-      return false;
+      if (overlap) return true;
     }
+    return false;
+  }
 
-    function gameLoop(timestamp) {
-      if (!gameRunning) return;
+  function checkLevelProgress() {
+    const lvl = levels[currentLevel];
 
-      const dt = (timestamp - lastTime) / 1000;
-      lastTime = timestamp;
+    if (obstaclesSpawned >= lvl.length) {
+      currentLevel++;
 
-      updatePlayer(dt);
-      updateObstacles(dt);
-
-      spawnTimer -= dt;
-      if (spawnTimer <= 0) {
-        spawnObstacle();
-        spawnTimer = 1.2 + Math.random() * 0.8; // random spacing
-      }
-
-      if (checkCollision()) {
+      if (currentLevel >= levels.length) {
         gameRunning = false;
-        gameOverText.textContent = `Game Over\nScore: ${score}`;
+        gameOverText.textContent = `You Win!\nFinal Score: ${score}`;
         gameOverOverlay.style.visibility = "visible";
         return;
       }
 
-      requestAnimationFrame(gameLoop);
+      loadLevel(currentLevel);
+    }
+  }
+
+  function gameLoop(timestamp) {
+    if (!gameRunning) return;
+
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    updatePlayer(dt);
+    updateObstacles(dt);
+
+    const lvl = levels[currentLevel];
+    spawnTimer -= dt;
+    if (spawnTimer <= 0 && obstaclesSpawned < lvl.length) {
+      spawnObstacle();
+      spawnTimer = lvl.spawnMin + Math.random() * (lvl.spawnMax - lvl.spawnMin);
     }
 
-    // Input
-    window.addEventListener("keydown", e => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        jump();
-      }
-    });
+    checkLevelProgress();
 
-    gameContainer.addEventListener("mousedown", () => {
-      jump();
-    });
+    if (checkCollision()) {
+      gameRunning = false;
+      gameOverText.textContent = `Game Over\nScore: ${score}`;
+      gameOverOverlay.style.visibility = "visible";
+      return;
+    }
 
-    restartBtn.addEventListener("click", resetGame);
-
-    // Start
-    lastTime = performance.now();
     requestAnimationFrame(gameLoop);
-  </script>
-</body>
-</html>
+  }
+
+  window.addEventListener("keydown", e => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      jump();
+    }
+  });
+
+  gameContainer.addEventListener("mousedown", jump);
+  restartBtn.addEventListener("click", resetGame);
+
+  loadLevel(0);
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+</script>
