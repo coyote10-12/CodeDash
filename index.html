@@ -2,100 +2,283 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Multiplication Tables Grid</title>
+  <title>Fake Geometry Dash</title>
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f5f5f7;
+    * {
+      box-sizing: border-box;
       margin: 0;
-      padding: 20px;
+      padding: 0;
+    }
+
+    body {
+      background: #111;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      overflow: hidden;
     }
 
     h1 {
-      text-align: center;
-      margin-bottom: 20px;
+      margin: 10px 0;
+      font-size: 24px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .table-card {
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-      padding: 12px 14px;
-    }
-
-    .table-title {
-      font-weight: 600;
-      margin-bottom: 8px;
-      text-align: center;
-      color: #333;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
+    #info {
       font-size: 14px;
-      padding: 2px 0;
+      margin-bottom: 10px;
+      opacity: 0.8;
     }
 
-    .row span {
-      width: 33%;
+    #gameContainer {
+      position: relative;
+      width: 800px;
+      height: 300px;
+      border: 2px solid #444;
+      background: linear-gradient(#222, #000);
+      overflow: hidden;
+    }
+
+    #ground {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 40px;
+      background: #333;
+      box-shadow: 0 -2px 0 #555 inset;
+    }
+
+    #player {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      left: 80px;
+      bottom: 40px;
+      background: #00e5ff;
+      box-shadow: 0 0 10px #00e5ff;
+    }
+
+    .obstacle {
+      position: absolute;
+      width: 20px;
+      height: 40px;
+      bottom: 40px;
+      background: #ff006e;
+      box-shadow: 0 0 10px #ff006e;
+    }
+
+    #score {
+      margin-top: 8px;
+      font-size: 16px;
+    }
+
+    #gameOver {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: #fff;
+      font-size: 24px;
       text-align: center;
+      visibility: hidden;
     }
 
-    .row:nth-child(odd) {
-      background: #fafafa;
+    #gameOver button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      border: none;
+      background: #00e676;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
       border-radius: 4px;
+    }
+
+    #gameOver button:hover {
+      background: #00c853;
     }
   </style>
 </head>
 <body>
-  <h1>Multiplication Tables (1–12)</h1>
-  <div id="tablesGrid" class="grid"></div>
+  <h1>Fake Geometry Dash</h1>
+  <div id="info">Press SPACE or CLICK to jump. Avoid the pink spikes.</div>
+
+  <div id="gameContainer">
+    <div id="player"></div>
+    <div id="ground"></div>
+    <div id="gameOver">
+      <div id="gameOverText">Game Over</div>
+      <button id="restartBtn">Restart</button>
+    </div>
+  </div>
+
+  <div id="score">Score: <span id="scoreValue">0</span></div>
 
   <script>
-    function createMultiplicationTables(start = 1, end = 12, maxMultiplier = 12) {
-      const grid = document.getElementById("tablesGrid");
+    const gameContainer = document.getElementById("gameContainer");
+    const player = document.getElementById("player");
+    const gameOverOverlay = document.getElementById("gameOver");
+    const gameOverText = document.getElementById("gameOverText");
+    const restartBtn = document.getElementById("restartBtn");
+    const scoreSpan = document.getElementById("scoreValue");
 
-      for (let n = start; n <= end; n++) {
-        const card = document.createElement("div");
-        card.className = "table-card";
+    const containerWidth = 800;
+    const containerHeight = 300;
+    const groundHeight = 40;
 
-        const title = document.createElement("div");
-        title.className = "table-title";
-        title.textContent = `${n} Times Table`;
-        card.appendChild(title);
+    let obstacles = [];
+    let lastTime = 0;
+    let speed = 300; // pixels per second
+    let gravity = -1500; // px/s^2 (negative because we use bottom)
+    let jumpVelocity = 650; // px/s
+    let playerY = 40; // bottom position
+    let playerVY = 0;
+    let isOnGround = true;
+    let gameRunning = true;
+    let spawnTimer = 0;
+    let score = 0;
 
-        for (let i = 1; i <= maxMultiplier; i++) {
-          const row = document.createElement("div");
-          row.className = "row";
+    function resetGame() {
+      obstacles.forEach(o => o.el.remove());
+      obstacles = [];
+      playerY = 40;
+      playerVY = 0;
+      isOnGround = true;
+      speed = 300;
+      spawnTimer = 0;
+      score = 0;
+      scoreSpan.textContent = "0";
+      gameRunning = true;
+      gameOverOverlay.style.visibility = "hidden";
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    }
 
-          const left = document.createElement("span");
-          left.textContent = `${n}`;
-          const middle = document.createElement("span");
-          middle.textContent = `× ${i}`;
-          const right = document.createElement("span");
-          right.textContent = `= ${n * i}`;
+    function spawnObstacle() {
+      const el = document.createElement("div");
+      el.className = "obstacle";
+      gameContainer.appendChild(el);
 
-          row.appendChild(left);
-          row.appendChild(middle);
-          row.appendChild(right);
-          card.appendChild(row);
-        }
+      const obstacle = {
+        el,
+        x: containerWidth,
+        width: 20,
+        passed: false
+      };
 
-        grid.appendChild(card);
+      el.style.left = obstacle.x + "px";
+      obstacles.push(obstacle);
+    }
+
+    function jump() {
+      if (!gameRunning) return;
+      if (isOnGround) {
+        playerVY = jumpVelocity;
+        isOnGround = false;
       }
     }
 
-    // Generate tables 1–12 on load
-    createMultiplicationTables(1, 12, 12);
+    function updatePlayer(dt) {
+      playerVY += gravity * dt;
+      playerY += playerVY * dt;
+
+      if (playerY <= groundHeight) {
+        playerY = groundHeight;
+        playerVY = 0;
+        isOnGround = true;
+      }
+
+      player.style.bottom = playerY + "px";
+    }
+
+    function updateObstacles(dt) {
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed * dt;
+        o.el.style.left = o.x + "px";
+
+        if (!o.passed && o.x + o.width < 80) {
+          o.passed = true;
+          score++;
+          scoreSpan.textContent = score;
+          speed += 10; // slowly increase difficulty
+        }
+
+        if (o.x + o.width < 0) {
+          o.el.remove();
+          obstacles.splice(i, 1);
+        }
+      }
+    }
+
+    function checkCollision() {
+      const playerRect = player.getBoundingClientRect();
+      for (const o of obstacles) {
+        const rect = o.el.getBoundingClientRect();
+        const overlap =
+          playerRect.left < rect.right &&
+          playerRect.right > rect.left &&
+          playerRect.top < rect.bottom &&
+          playerRect.bottom > rect.top;
+
+        if (overlap) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function gameLoop(timestamp) {
+      if (!gameRunning) return;
+
+      const dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+
+      updatePlayer(dt);
+      updateObstacles(dt);
+
+      spawnTimer -= dt;
+      if (spawnTimer <= 0) {
+        spawnObstacle();
+        spawnTimer = 1.2 + Math.random() * 0.8; // random spacing
+      }
+
+      if (checkCollision()) {
+        gameRunning = false;
+        gameOverText.textContent = `Game Over\nScore: ${score}`;
+        gameOverOverlay.style.visibility = "visible";
+        return;
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Input
+    window.addEventListener("keydown", e => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        jump();
+      }
+    });
+
+    gameContainer.addEventListener("mousedown", () => {
+      jump();
+    });
+
+    restartBtn.addEventListener("click", resetGame);
+
+    // Start
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
