@@ -1,0 +1,30 @@
+body{
+  margin:0;
+  font-family:system-ui,Arial;
+  background:rgba(15,23,42,0.95);
+  color:#e5e7eb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
+.wrap{
+  text-align:center;
+  background:#020617;
+  padding:24px 32px;
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.7);
+}
+button{
+  display:block;
+  width:200px;
+  margin:8px auto;
+  padding:10px 14px;
+  border-radius:8px;
+  border:none;
+  background:#f97316;
+  color:#111827;
+  font-weight:700;
+  cursor:pointer;
+}
+button:hover{background:#fb923c;}
